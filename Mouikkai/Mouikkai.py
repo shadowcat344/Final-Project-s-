@@ -1370,7 +1370,7 @@ class DialogueBox:
                     screen.blit(name_surf, (x - 10, y - 60))
 
             for i, line in enumerate(lines):
-                text_surf = self.font.render(line, True, (255, 255, 255))
+                text_surf = self.font.render(line, True, self.text_color)
                 screen.blit(text_surf, (x, y + i * line_height))
 
     def next_sentence(self):
@@ -1574,8 +1574,8 @@ class Player:
         self.trail_timer = 0  # For dash ghost effect
         self.is_holding_violin = False
 
-        self.health = 3
-        self.max_health = 3
+        self.health = 4
+        self.max_health = 4
         self.invulnerability_timer = 0
         self.is_invincible = False
         self.visible = True
@@ -1668,6 +1668,8 @@ class Player:
                     else:
                         self.take_damage(self.max_health)
                 elif tile.type == 'neonlaser':
+                    if not getattr(tile, 'active', False):
+                        continue
                     laser_hitbox = tile.rect.copy()
                     if tile.orientation == 'V':
                         laser_hitbox.width = 10  # Thin vertical hitbox
@@ -4009,15 +4011,15 @@ class NeonLaserTile:
         self.boss_managed = boss_managed
         self.damage = 1 if boss_managed else 3
         self.timer = 0
+        self.fading_in = False
+        self.fade_step = 10
         if boss_managed:
             self.active_duration = 40
             self.inactive_duration = 999999
         else:
             self.active_duration = 120  # frames active
             self.inactive_duration = 180  # frames inactive
-        self.active_delay_alpha = 140
-        self.fade_step = 10
-        self.fading_in = False
+        self.active_delay_alpha = 255  # only deal damage when fully visible
 
     def update(self, player_rect=None):
         self.timer += 1
@@ -4953,6 +4955,11 @@ def main():
         "The Moon...|where the first melody is..."
     ]
     intro_dialogue = DialogueBox(font, opening_text, autoplay = True, has_background = False)
+    # Dialogues to show before the intro sequence when starting a new game
+    disclaimer_dialogue = None
+    howto_dialogue = None
+    disclaimer_text = None
+    howto_text = None
 
     z_was_held = False
     talking_npc = None
@@ -5064,9 +5071,16 @@ def main():
                                 "(Suppress it.| Just suppress it....)",
                                 "The Moon...|where the first melody is..."
                             ]
+                            # Prepare disclaimer and how-to dialogs to show before the intro
+                            disclaimer_text = ["DISCLAIMER: This project was mainly made for fun.| I am not a professional developer.| \nAs such, the coding was heavily AI assisted, so please don't think I'm an expert at coding.| \nThat being said, AI is...not very smart, and this still took hundreds of hours of debugging manually| \nand trying to get pretty much anything to work."]
+                            howto_text = ["HOW TO PLAY: \nKEYBOARD: Arrow keys to move. Z to jump/interact. Hold X to run. \nPress SHIFT to dash (in any 8 directions).",
+                                        "\nCONTROLLER (xbox controller): Use the left stick to move, \nA to jump, X to run, and LB/RB to dash."]
+                            disclaimer_dialogue = DialogueBox(font, disclaimer_text, autoplay=False, has_background=True, text_color=(0,0,0))
+                            howto_dialogue = DialogueBox(font, howto_text, autoplay=False, has_background=True, text_color=(0,0,0))
+                            # Keep the intro ready to start after the how-to
                             intro_dialogue = DialogueBox(font, opening_text, autoplay=True, has_background=False)
                             active_dialogue = None
-                            game_state = "INTRO"
+                            game_state = "DISCLAIMER"
                         elif title_selected == 1:
                             if not load_game():
                                 active_dialogue = DialogueBox(font, ["No save file found."], speaker_name="System")
@@ -5107,9 +5121,16 @@ def main():
                                 "(Suppress it.| Just suppress it....)",
                                 "The Moon...|where the first melody is..."
                             ]
+                            # Prepare disclaimer and how-to dialogs to show before the intro
+                            disclaimer_text = ["DISCLAIMER: This project was mainly made for fun.| I am not a professional developer.| \nAs such, the coding was heavily AI assisted, so please don't think I'm an expert at coding.| \nThat being said, AI is...not very smart, and this still took hundreds of hours of debugging manually| \nand trying to get pretty much anything to work."]
+                            howto_text = ["HOW TO PLAY: \nKEYBOARD: Arrow keys to move. Z to jump/interact. Hold X to run. \nPress SHIFT to dash (in any 8 directions).",
+                                        "\nCONTROLLER (xbox controller): Use the left stick to move, \nA to jump, X to run, and LB/RB to dash."]
+                            disclaimer_dialogue = DialogueBox(font, disclaimer_text, autoplay=False, has_background=True, text_color=(0,0,0))
+                            howto_dialogue = DialogueBox(font, howto_text, autoplay=False, has_background=True, text_color=(0,0,0))
+                            # Keep the intro ready to start after the how-to
                             intro_dialogue = DialogueBox(font, opening_text, autoplay=True, has_background=False)
                             active_dialogue = None
-                            game_state = "INTRO"
+                            game_state = "DISCLAIMER"
                         elif title_selected == 1:
                             if not load_game():
                                 active_dialogue = DialogueBox(font, ["No save file found."], speaker_name="System")
@@ -5347,6 +5368,18 @@ def main():
                 active_dialogue.update(keys)
                 if active_dialogue.finished:
                     active_dialogue = None
+        elif game_state == "DISCLAIMER":
+            # Update the disclaimer dialog (no skip_held)
+            if disclaimer_dialogue:
+                disclaimer_dialogue.update(keys)
+                if disclaimer_dialogue.finished:
+                    game_state = "HOWTO"
+        elif game_state == "HOWTO":
+            # Update the how-to dialog
+            if howto_dialogue:
+                howto_dialogue.update(keys)
+                if howto_dialogue.finished:
+                    game_state = "INTRO"
         elif game_state == "INTRO":
             # Skip intro dialogue by holding Shift (for dev testing)
             skip_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
@@ -5606,15 +5639,15 @@ def main():
                     final_cutscene_triggered = False
                 if final_level_autoscroll:
                     if current_final_phase == 1:
-                        Vio.max_health =5
+                        Vio.max_health =6
                         #Vio.health = Vio.max_health 
                         
                     if current_final_phase == 2:
                         #Vio.max_health += 1
                         #Vio.health = Vio.max_health + 2
-                        Vio.max_health =6
-                    if current_final_phase == 3:
                         Vio.max_health =7
+                    if current_final_phase == 3:
+                        Vio.max_health =9
                         #Vio.health = Vio.max_health + 3
                 if final_level_autoscroll and current_final_phase >= 3 or final_cutscene_triggered:
                     if final_phase_shake_timer <= 0 and random.random() < 0.03:
@@ -5879,6 +5912,7 @@ def main():
                     active_dialogue = DialogueBox(font, boss2_dialogue, speaker_name="Princess Kira")
                 else: 
                     boss2_state = "FIGHTING"
+                
             if boss2_triggered:
                 if boss2_state == "INTRO":
                     if active_dialogue:
@@ -6134,6 +6168,15 @@ def main():
                     pygame.draw.rect(screen, (255, 255, 255), indicator_rect, 3)
             if active_dialogue:
                 active_dialogue.draw(screen, WIDTH // 2 - 200, HEIGHT // 2)
+        elif game_state == "DISCLAIMER":
+            # White background for disclaimer to reduce confusion
+            screen.fill((255, 255, 255))
+            if disclaimer_dialogue:
+                disclaimer_dialogue.draw(screen, WIDTH //4 - 200, HEIGHT // 5)
+        elif game_state == "HOWTO":
+            screen.fill((255, 255, 255))
+            if howto_dialogue:
+                howto_dialogue.draw(screen, WIDTH // 2 - 200, HEIGHT // 2)
         elif game_state == "INTRO":
             screen.fill((0, 0, 0))
             intro_dialogue.draw(screen, WIDTH // 2 - 200, HEIGHT // 2)
