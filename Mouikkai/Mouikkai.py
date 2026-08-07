@@ -1575,6 +1575,7 @@ class Player:
         self.is_holding_violin = False
 
         self.health = 4
+        self.easy_mode = False
         self.max_health = 4
         self.invulnerability_timer = 0
         self.is_invincible = False
@@ -1612,6 +1613,22 @@ class Player:
         self.on_wall = None
         self.wall_jump_cooldown = 0
         self.air_control_timer = 0
+
+    @property
+    def max_health(self):
+        return self._base_max_health * (2 if self.easy_mode else 1)
+
+    @max_health.setter
+    def max_health(self, value):
+        self._base_max_health = value
+        if hasattr(self, 'health') and self.health > self.max_health:
+            self.health = self.max_health
+
+    def set_easy_mode(self, active):
+        if self.easy_mode == active:
+            return
+        self.easy_mode = active
+        self.health = min(self.health, self.max_health)
 
     def sync_draw_rect(self):
         if not hasattr(self, 'draw_rect'):
@@ -2144,7 +2161,7 @@ class Checkpoint:
             self.active = True
             # Update the player's respawn position to this checkpoint
             player.spawn_point = (self.rect.x, self.rect.y)
-            # Optional: Play a sound or visual effect here
+          
             #print("Checkpoint reached!")
             save_game_state()
             checkpoint_message = "Checkpoint reached. Game saved"
@@ -4672,8 +4689,8 @@ def handle_player_death(player, hazards, tiles, camera, particles, trail_particl
     
     # During level 2 boss fight
     if boss2_triggered:
-        player.rect.x = 21000  
-        player.rect.y = 740  
+        player.rect.x = 21200  
+        player.rect.y = 2250  
         player.spawn_point = (player.rect.x, player.rect.y)
         player.vel_x = 0
         player.vel_y = 0
@@ -5138,7 +5155,7 @@ def main():
             if game_state == "PLAYING":
                 can_jump = not active_dialogue or (active_dialogue and active_dialogue.is_passive)
                 if event.type == pygame.KEYDOWN:
-                    # Debug buttons (easily disablable)
+                    # Debug buttons 
                     if DEBUG_ENABLED:
                         if event.key == pygame.K_1:
                             Vio.rect.x -= 1000
@@ -5176,9 +5193,9 @@ def main():
                                     "@Captain Vio:(Maybe...it's right. Who knows what that voice was? \nMaybe I should just....forget about it.)",
                                     #"But a knife's a knife."
                                 ], speaker_name="Captain Vio")
-                            else: # NO
+                            else: 
                                 active_dialogue = None 
-                            continue # Skip the rest of the key logic
+                            continue
                     for npc in npcs:
                         if not active_dialogue and npc.check_interaction(Vio.rect, True):
                             active_dialogue = DialogueBox(font, npc.dialogue_text, 
@@ -5191,33 +5208,35 @@ def main():
                     if interaction_performed:
                         continue
 
-
-                    # Pause with P key
-                    if event.key == pygame.K_p:
+                    # Easy mode toggle
+                    if event.key == pygame.K_e:
+                        Vio.set_easy_mode(not Vio.easy_mode)
+                    
+                    elif event.key == pygame.K_p:
                         is_paused = not is_paused
                         pause_selected = 0
                         if is_paused:
                             pause_music()
                         else:
                             resume_music()
-                    # Pause menu navigation
+                    # Pause menu 
                     elif is_paused:
                         if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
                             pause_selected = (pause_selected + 1) % 2
                         elif event.key in (pygame.K_z, pygame.K_RETURN, pygame.K_SPACE):
                             if pause_selected == 0:
-                                # Continue game
+                                
                                 is_paused = False
                                 resume_music()
                             elif pause_selected == 1:
-                                # Exit program
+                                
                                 return
                     elif event.key == pygame.K_z and can_jump:
                         is_running = keys[pygame.K_x] and abs(Vio.vel_x) > WALK_SPEED
                         Vio.jump(is_running)
                     # ESC key hold for 3 seconds to exit
                     elif event.key == pygame.K_ESCAPE:
-                        esc_hold_timer = 180  # 3 seconds at 60 FPS
+                        esc_hold_timer = 180  
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_ESCAPE:
                         esc_hold_timer = 0
@@ -5247,12 +5266,12 @@ def main():
         if esc_hold_timer > 0:
             esc_hold_timer -= 1
             if esc_hold_timer <= 0:
-                return  # Exit program
+                return  
         
-        # Controller pause button (try button 6 and 7 which are often +/-)
+        # Controller pause button 
         for joy in joysticks:
             try:
-                # Button 6 or 7 is often START/+ or - button
+                
                 if (joy.get_button(6) or joy.get_button(7)) and game_state == "PLAYING":
                     is_paused = not is_paused
                     pause_selected = 0
@@ -6002,6 +6021,7 @@ def main():
                 if violin_timer > 0:
                     violin_timer -= 1
                     if violin_timer <= 0:
+                        Vio.is_holding_violin = False
                         transition_fading = True
                 
                 if transition_fading: #=====THE SECOND MELODY MEMORY=======
@@ -6183,6 +6203,9 @@ def main():
         elif game_state == "PLAYING":
             health_text = font.render(f"Health: {Vio.health}", True, (255, 255, 255))
             screen.blit(health_text, (10, 10))
+            if getattr(Vio, 'easy_mode', False):
+                easy_text = font.render("Easy Mode", True, (100, 255, 100))
+                screen.blit(easy_text, (WIDTH - easy_text.get_width() - 20, 10))
             if checkpoint_message_timer > 0:
                 checkpoint_message_timer -= dt
                 message_surface = font.render(checkpoint_message, True, (255, 255, 255))
