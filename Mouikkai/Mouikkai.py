@@ -26,9 +26,9 @@ DASH_TIME = 15
 DASH_COOLDOWN = 20
 
 DEBUG_LEVEL_2 = False
-DEBUG_ENABLED = True  # debug warping 
+DEBUG_ENABLED = False  # debug warping 
 DEBUG_SHIP_SPAWN = False
-canSkip = True
+canSkip = False
  
 active_dialogue=None
 boss_triggered = False
@@ -1533,7 +1533,7 @@ default_pos = (100, 2724)
 # Get initial image from idle animation
 LEVEL_START_POINTS = {
     1: default_pos,
-    2: (800, 1224),#(20000, 1800))#(14000,900)#
+    2: (800, 1024),#(20000, 1800))#(14000,900)#
     'FINAL': (100, 800)
 }
 
@@ -1596,7 +1596,6 @@ class Player:
 
         self.cutscene_target_x = None
         self.cutscene_speed = 3
-
     def reset_for_level(self, spawn_point):
         self.spawn_point = spawn_point
         self.draw_rect.topleft = spawn_point
@@ -1642,7 +1641,7 @@ class Player:
             self.vel_x = 0
         global current_level, final_level_autoscroll
         self.is_walking = False  # Reset walking flag each frame
-        self.update_animation()
+        start_rect_x = self.rect.x
         if self.cutscene_target_x is not None:
             dist = self.cutscene_target_x - self.rect.centerx
             if abs(dist) < self.cutscene_speed:
@@ -1654,7 +1653,14 @@ class Player:
             else:
                 # Move toward target
                 direction = 1 if dist > 0 else -1
+                # If a cutscene movement starts while dashing, cancel the dash
+                if self.is_dashing:
+                    self.is_dashing = False
+                    self.dash_timer = 0
+                    self.dash_direction = (0, 0)
+                    self.trail_timer = 0
                 self.rect.x += direction * self.cutscene_speed
+                # a modest visual velocity for animation logic
                 self.vel_x = 1.2 * direction
                 self.facing_right = (direction == 1)
                 self.is_walking = True
@@ -1720,6 +1726,15 @@ class Player:
         if not landed and self.vel_y > 0 and not self.is_jumping:
             self.is_jumping = True
 
+        # If external code moved the rect (cutscene or manual), mark walking so
+        # the animator can pick the correct walking frame instead of idle.
+        if self.rect.x != start_rect_x and not self.is_dashing:
+            self.is_walking = True
+
+        # Ensure animation and visual rect are synced after physics/collisions
+        self.update_animation()
+        self.sync_draw_rect()
+
         if not self.can_move:
             self.vel_x = 0
             return
@@ -1767,7 +1782,7 @@ class Player:
         if dpad_x != 0:
             controller_x = dpad_x
         if dpad_y != 0:
-            controller_y = dpad_y
+            controller_y = -dpad_y
 
         def snap_axis(x, y, deadzone=0.3):
             x = x if abs(x) > deadzone else 0
@@ -1918,7 +1933,8 @@ class Player:
             right_limit = camera.offset_x + WIDTH - 10
             if self.rect.left < left_limit:
                 self.rect.left = left_limit
-                self.vel_x = 0
+                if input_x <= 0:
+                    self.vel_x = 0
             if self.rect.right > right_limit:
                 self.rect.right = right_limit
                 self.vel_x = 0
@@ -1928,7 +1944,7 @@ class Player:
                     tile.type in ('normal', 'neon', 'invisible', 'wall') and self.rect.colliderect(tile.rect)
                     for tile in tiles
                 )
-                if crush_collision and self.vel_x <= 0:
+                if crush_collision and self.vel_x <= 0: #and input_x <= 0:
                     self.take_damage(self.max_health)
 
         # Wall slide detection using sensors and active input
@@ -3061,6 +3077,10 @@ class BossManager:
                     "There's no other choice...|right?",
                 ], is_passive=False)
                 self.current_scene_text = self.battle_dialogue
+                try:
+                    player.visible = True
+                except Exception:
+                    pass
                 # player.can_move = False  # Handled by cutscene_mode
 
         elif self.state == "POST_BATTLE_THOUGHTS":
@@ -3411,7 +3431,7 @@ class KiraBossManager:
         
         if self.state == "VULNERABLE":
             if self.vulnerable_timer == 0:
-                self.vulnerable_timer = 300
+                self.vulnerable_timer = 800
                 self.battle_dialogue = DialogueBox(
                     self.font,
                     ["@Captain Vio: Now she's down, I can dash into her shield."],
@@ -4459,7 +4479,7 @@ def load_level(level_number):
     active_dialogue = None
 
     #current_fade = ship.transition_fade if ship is not None else 0
-    start_pos = LEVEL_START_POINTS.get(level_number, (100, 2724))
+    start_pos = LEVEL_START_POINTS.get(level_number, (100, 2724)) 
     
     Vio.reset_for_level(start_pos)
 
@@ -5101,7 +5121,7 @@ def main():
                                                "Anyway, please enjoy!"]
                             howto_text = ["HOW TO PLAY: \nKEYBOARD: Arrow keys to move. Z to jump/interact. Hold X to run. \nPress SHIFT to dash (in any 8 directions).",
                                         "\nCONTROLLER (xbox controller): Use the left stick to move, \nA to jump, X to run, and LB/RB to dash.",
-                                        "When you're jumping, you can cling to walls by pressing the \ndirectional button up against it. And press the jump button to wall jump!\n\n|Onto the game!"]
+                                        "When you're jumping, you can cling to walls by pressing the \ndirectional button up against it. And press the jump button to wall jump!\nAlso, press E to toggle easy mode, which will double your max \nhealth while active.\n \n|Onto the game!"]
                             disclaimer_dialogue = DialogueBox(font, disclaimer_text, autoplay=False, has_background=True, text_color=(0,0,0))
                             howto_dialogue = DialogueBox(font, howto_text, autoplay=False, has_background=True, text_color=(0,0,0))
                             # Keep the intro ready to start after the how-to
@@ -5149,9 +5169,13 @@ def main():
                                 "The Moon...|where the first melody is..."
                             ]
                             # Prepare disclaimer and how-to dialogs to show before the intro
-                            disclaimer_text = ["DISCLAIMER: This project was mainly made for fun.| I am not a professional developer.| \nAs such, the coding was heavily AI assisted, so please don't think I'm an expert at coding.| \nThat being said, AI is...not very smart, and this still took hundreds of hours of debugging manually| \nand trying to get pretty much anything to work."]
+                            disclaimer_text = ["DISCLAIMER: This project was mainly made for fun.| I am not a professional developer.| \nAs such, the coding was heavily AI assisted, so please don't think I'm an expert at coding.\n\n[press Z (or A on controller) to continue]",
+                                                                          "That being said, AI is...not very smart, and this still took hundreds of hours of debugging manually \nand trying to get pretty much anything to work.| That's likely for the best though,\nsince if AI was better at programming, it'd take away some of the learning experience.",
+                                                                          "Also, this game was made on a short time constraint. There are large pacing issues, and the story \nwasn't quite how I wanted it especially at the end (though I have made some small bug fixes and stuff\nsince then). I hope to work on this game more in the future to reach how I originally envisioned it, \nso maybe think of this as a prototype until then!|\nOr perhaps I'll just take some of these story ideas and make something different....",
+                                                                          "Anyway, please enjoy!"]
                             howto_text = ["HOW TO PLAY: \nKEYBOARD: Arrow keys to move. Z to jump/interact. Hold X to run. \nPress SHIFT to dash (in any 8 directions).",
-                                        "\nCONTROLLER (xbox controller): Use the left stick to move, \nA to jump, X to run, and LB/RB to dash."]
+                                                                   "CONTROLLER (xbox controller): Use the left stick to move, \nA to jump, X to run, and LB/RB to dash.",
+                                                                   "When you're jumping, you can cling to walls by pressing the \ndirectional button up against it. And press the jump button to wall jump!\nAlso, press E to toggle easy mode, which will double your max \nhealth while active.\n \n|Onto the game!"]
                             disclaimer_dialogue = DialogueBox(font, disclaimer_text, autoplay=False, has_background=True, text_color=(0,0,0))
                             howto_dialogue = DialogueBox(font, howto_text, autoplay=False, has_background=True, text_color=(0,0,0))
                             # Keep the intro ready to start after the how-to
