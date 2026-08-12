@@ -5115,7 +5115,7 @@ def main():
                                 "The Moon...|where the first melody is..."
                             ]
                             # DISCLAIMER AND HOW TO PLAY
-                            disclaimer_text = ["DISCLAIMER: This project was mainly made for fun.| I am not a professional developer.| \nAs such, the coding was heavily AI assisted, so please don't think I'm an expert at coding.\n\n[press Z (or A on controller) to continue]",
+                            disclaimer_text = ["DISCLAIMER/Developer Note: This project was mainly made for fun.| I am not a professional developer.| \nAs such, the coding was heavily AI assisted, so please don't think I'm an expert at coding.\n\n[press Z (or A on controller) to continue]",
                                                "That being said, AI is...not very smart, and this still took hundreds of hours of debugging manually \nand trying to get pretty much anything to work.| That's likely for the best though,\nsince if AI was better at programming, it'd take away some of the learning experience.",
                                                "Also, this game was made on a short time constraint. There are large pacing issues, and the story \nwasn't quite how I wanted it especially at the end (though I have made some small bug fixes and stuff\nsince then). I hope to work on this game more in the future to reach how I originally envisioned it, \nso maybe think of this as a prototype until then!|\nOr perhaps I'll just take some of these story ideas and make something different....",
                                                "Anyway, please enjoy!"]
@@ -5169,7 +5169,7 @@ def main():
                                 "The Moon...|where the first melody is..."
                             ]
                             # Prepare disclaimer and how-to dialogs to show before the intro
-                            disclaimer_text = ["DISCLAIMER: This project was mainly made for fun.| I am not a professional developer.| \nAs such, the coding was heavily AI assisted, so please don't think I'm an expert at coding.\n\n[press Z (or A on controller) to continue]",
+                            disclaimer_text = ["DISCLAIMER/Developer Note: This project was mainly made for fun.| I am not a professional developer.| \nAs such, the coding was heavily AI assisted, so please don't think I'm an expert at coding.\n\n[press Z (or A on controller) to continue]",
                                                                           "That being said, AI is...not very smart, and this still took hundreds of hours of debugging manually \nand trying to get pretty much anything to work.| That's likely for the best though,\nsince if AI was better at programming, it'd take away some of the learning experience.",
                                                                           "Also, this game was made on a short time constraint. There are large pacing issues, and the story \nwasn't quite how I wanted it especially at the end (though I have made some small bug fixes and stuff\nsince then). I hope to work on this game more in the future to reach how I originally envisioned it, \nso maybe think of this as a prototype until then!|\nOr perhaps I'll just take some of these story ideas and make something different....",
                                                                           "Anyway, please enjoy!"]
